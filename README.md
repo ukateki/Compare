@@ -41,3 +41,6 @@ You may be required to enter a password. This password is your login password an
 - If the file sizes differ, the program will immediately report a difference.
 - The program requires curl and dd commands to handle URLs and local files.
 - Ensure the provided files or URLs are accessible.
+
+### Discuss
+We have a Telegram Group for discussion: [Digital Divinity Chat](https://t.me/Digital_Divinity_Chat)
