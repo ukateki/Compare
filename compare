@@ -1,0 +1,67 @@
+#!/bin/zsh
+
+# Function to get a chunk of a file from a URL or local path
+get_file_chunk() {
+    local file_path=$1
+    local offset=$2
+    local chunk_size=$3
+    if [[ $file_path =~ ^https?:// ]]; then
+        curl -s --range "$offset"-"$((offset + chunk_size - 1))" "$file_path"
+    else
+        dd if="$file_path" bs=1 skip="$offset" count="$chunk_size" 2>/dev/null
+    fi
+}
+
+# Function to generate a checksum for a given string
+generate_checksum() {
+    local content=$1
+    local md5_checksum=$(echo "$content" | md5)
+    local sha1_checksum=$(echo "$content" | shasum | awk '{print $1}')
+    echo "$md5_checksum$sha1_checksum"
+}
+
+# Function to compare two files
+compare_files() {
+    local file1=$1
+    local file2=$2
+    local parts=50
+    local chunk_size=1024 # 1 KB per chunk
+
+    local file1_size=$(stat -f%z "$file1")
+    local file2_size=$(stat -f%z "$file2")
+
+    if [[ $file1_size -ne $file2_size ]]; then
+        echo "\033[31mFiles are of different sizes\033[0m" # Red color for different sizes
+        return 1
+    fi
+
+    for ((i = 1; i <= parts; i++)); do
+        local random_offset=$((RANDOM % (file1_size - chunk_size)))
+        local file1_chunk=$(get_file_chunk "$file1" "$random_offset" "$chunk_size")
+        local file2_chunk=$(get_file_chunk "$file2" "$random_offset" "$chunk_size")
+
+        local file1_checksum=$(generate_checksum "$file1_chunk")
+        local file2_checksum=$(generate_checksum "$file2_chunk")
+
+        if [[ $file1_checksum != $file2_checksum ]]; then
+            echo "\033[31mFiles differ at chunk $i (offset: $random_offset)\033[0m" # Red color for differences
+            return 1
+        else
+            echo "\033[32mChunk $i (offset: $random_offset) matches\033[0m" # Green color for matches
+        fi
+    done
+
+    echo "\033[32mFiles are identical based on sampled parts\033[0m" # Green color for identical files
+    return 0
+}
+
+# Main script logic
+file1=$1
+file2=$2
+
+if [[ -z $file1 || -z $file2 ]]; then
+    echo "Usage: $0 <file1> <file2>"
+    exit 1
+fi
+
+compare_files "$file1" "$file2"
